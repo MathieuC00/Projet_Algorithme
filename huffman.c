@@ -65,7 +65,6 @@ bool EstListeVide(PListe l) {
     return l == NULL;
 }
 
-/* Insertion triee par poids croissant (pour la liste des feuilles) */
 PListe Inserer(PArbre a, PListe l) {
     struct cellule *nouvelle = (struct cellule *)malloc(sizeof(struct cellule));
     if (nouvelle == NULL) {
@@ -104,7 +103,6 @@ PListe Queue(PListe l) {
     return suite;
 }
 
-/* Ajout en fin de liste — la liste des noeuds reste courte (max 255 elements) */
 PListe AjouterFin(PArbre a, PListe l) {
     struct cellule *nouvelle = (struct cellule *)malloc(sizeof(struct cellule));
     if (nouvelle == NULL) {
@@ -175,8 +173,8 @@ PArbre construire_arbre(int frequences[MAX_CHAR]) {
         if (frequences[i] > 0) {
             element e;
             e.caractere   = (unsigned char)i;
-            e.poids        = frequences[i];
-            e.est_feuille  = true;
+            e.poids       = frequences[i];
+            e.est_feuille = true;
             PArbre feuille = Construire(e, ArbreVide(), ArbreVide());
             l_feuilles     = Inserer(feuille, l_feuilles);
         }
@@ -189,8 +187,9 @@ PArbre construire_arbre(int frequences[MAX_CHAR]) {
         return a;
     }
 
-    /* 2. Liste des noeuds internes (initialement vide) */
-    PListe l_noeuds = ListeVide();
+    /* 2. Liste des noeuds internes avec pointeur de queue pour ajout en O(1) */
+    PListe l_noeuds    = ListeVide();
+    PListe queue_noeuds = NULL;
 
     /* Compter les feuilles une seule fois */
     int nb = 0;
@@ -207,7 +206,21 @@ PArbre construire_arbre(int frequences[MAX_CHAR]) {
         e.est_feuille = false;
         PArbre nouveau = Construire(e, a1, a2);
 
-        l_noeuds = AjouterFin(nouveau, l_noeuds);
+        /* Ajout en O(1) en queue */
+        struct cellule *cell = (struct cellule *)malloc(sizeof(struct cellule));
+        if (cell == NULL) {
+            fprintf(stderr, "Erreur : allocation memoire liste\n");
+            exit(EXIT_FAILURE);
+        }
+        cell->arbre   = nouveau;
+        cell->suivant = NULL;
+        if (queue_noeuds == NULL) {
+            l_noeuds = cell;
+        } else {
+            queue_noeuds->suivant = cell;
+        }
+        queue_noeuds = cell;
+
         nb--;
     }
 
