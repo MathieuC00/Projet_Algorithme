@@ -189,7 +189,9 @@ PArbre construire_arbre(int frequences[MAX_CHAR]) {
 
     /* Cas degenere : un seul caractere distinct */
     if (!EstListeVide(l_feuilles) && EstListeVide(l_feuilles->suivant)) {
-        return TeteArbre(Queue(l_feuilles));
+        PArbre a = TeteArbre(l_feuilles);
+        free(l_feuilles);
+        return a;
     }
 
     /* 2. Liste des noeuds internes (initialement vide) */
