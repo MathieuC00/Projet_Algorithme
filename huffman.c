@@ -74,13 +74,11 @@ PListe Inserer(PArbre a, PListe l) {
     }
     nouvelle->arbre = a;
 
-    /* Cas : liste vide ou poids <= tete */
     if (EstListeVide(l) || a->valeur.poids <= l->arbre->valeur.poids) {
         nouvelle->suivant = l;
         return nouvelle;
     }
 
-    /* Chercher la position d'insertion */
     struct cellule *courant = l;
     while (courant->suivant != NULL &&
            courant->suivant->arbre->valeur.poids < a->valeur.poids) {
@@ -106,7 +104,7 @@ PListe Queue(PListe l) {
     return suite;
 }
 
-/* Ajout en fin de liste en O(n) — la liste des noeuds reste courte */
+/* Ajout en fin de liste — la liste des noeuds reste courte (max 255 elements) */
 PListe AjouterFin(PArbre a, PListe l) {
     struct cellule *nouvelle = (struct cellule *)malloc(sizeof(struct cellule));
     if (nouvelle == NULL) {
@@ -134,8 +132,6 @@ void LibererListe(PListe l) {
 
 /* ===================================================================
  * Selection du minimum parmi deux listes
- * Retourne l'arbre de poids minimal en tete de l_feuilles ou l_noeuds
- * et avance la liste correspondante.
  * =================================================================== */
 static PArbre extraire_min(PListe *l_feuilles, PListe *l_noeuds) {
     bool f_vide = EstListeVide(*l_feuilles);
@@ -157,7 +153,6 @@ static PArbre extraire_min(PListe *l_feuilles, PListe *l_noeuds) {
         return a;
     }
 
-    /* Les deux listes sont non vides : comparer les tetes */
     if ((*l_feuilles)->arbre->valeur.poids <= (*l_noeuds)->arbre->valeur.poids) {
         PArbre a = TeteArbre(*l_feuilles);
         *l_feuilles = Queue(*l_feuilles);
@@ -197,31 +192,27 @@ PArbre construire_arbre(int frequences[MAX_CHAR]) {
     /* 2. Liste des noeuds internes (initialement vide) */
     PListe l_noeuds = ListeVide();
 
-    /* 3. Fusionner jusqu'a obtenir un seul arbre */
-    while (true) {
-        /* Compter le nombre d'arbres restants */
-        int nb = 0;
-        for (struct cellule *c = l_feuilles; c != NULL; c = c->suivant) nb++;
-        for (struct cellule *c = l_noeuds;   c != NULL; c = c->suivant) nb++;
-        if (nb == 1) break;
+    /* Compter les feuilles une seule fois */
+    int nb = 0;
+    for (int i = 0; i < MAX_CHAR; i++) if (frequences[i] > 0) nb++;
 
-        /* Extraire les deux arbres de poids minimum */
+    /* 3. Fusionner jusqu'a obtenir un seul arbre */
+    while (nb > 1) {
         PArbre a1 = extraire_min(&l_feuilles, &l_noeuds);
         PArbre a2 = extraire_min(&l_feuilles, &l_noeuds);
 
-        /* Creer un nouveau noeud interne */
         element e;
-        e.caractere  = 0;
-        e.poids      = a1->valeur.poids + a2->valeur.poids;
+        e.caractere   = 0;
+        e.poids       = a1->valeur.poids + a2->valeur.poids;
         e.est_feuille = false;
         PArbre nouveau = Construire(e, a1, a2);
 
-        /* Ajouter a la fin de la liste des noeuds */
         l_noeuds = AjouterFin(nouveau, l_noeuds);
+        nb--;
     }
 
     /* L'arbre final est dans la liste restante */
-    if (!EstListeVide(l_noeuds))  return TeteArbre(l_noeuds);
+    if (!EstListeVide(l_noeuds))   return TeteArbre(l_noeuds);
     if (!EstListeVide(l_feuilles)) return TeteArbre(l_feuilles);
 
     return ArbreVide();
@@ -235,7 +226,6 @@ void construire_codes(PArbre a, Code codes[MAX_CHAR],
     if (EstArbreVide(a)) return;
 
     if (a->valeur.est_feuille) {
-        /* Feuille : enregistrer le code */
         int c = (int)a->valeur.caractere;
         chemin[profondeur] = '\0';
         memcpy(codes[c].bits, chemin, (size_t)(profondeur + 1));
@@ -243,11 +233,9 @@ void construire_codes(PArbre a, Code codes[MAX_CHAR],
         return;
     }
 
-    /* Aller a gauche : ajouter '0' */
     chemin[profondeur] = '0';
     construire_codes(a->gauche, codes, chemin, profondeur + 1);
 
-    /* Aller a droite : ajouter '1' */
     chemin[profondeur] = '1';
     construire_codes(a->droite, codes, chemin, profondeur + 1);
 }
@@ -261,7 +249,6 @@ void encoder_arbre(PArbre a, char *tampon, int *pos) {
 
     if (a->valeur.est_feuille) {
         tampon[(*pos)++] = '1';
-        /* Ecrire les 8 bits ASCII du caractere, MSB en premier */
         unsigned char c = a->valeur.caractere;
         for (int i = 7; i >= 0; i--) {
             tampon[(*pos)++] = ((c >> i) & 1) ? '1' : '0';
@@ -279,25 +266,23 @@ void encoder_arbre(PArbre a, char *tampon, int *pos) {
 PArbre decoder_arbre(const char *bits, int *pos) {
     if (bits[*pos] == '0') {
         (*pos)++;
-        /* Noeud interne */
         PArbre gauche = decoder_arbre(bits, pos);
         PArbre droite = decoder_arbre(bits, pos);
         element e;
-        e.caractere  = 0;
-        e.poids      = 0;
+        e.caractere   = 0;
+        e.poids       = 0;
         e.est_feuille = false;
         return Construire(e, gauche, droite);
     } else {
         (*pos)++;
-        /* Feuille : lire 8 bits ASCII */
         unsigned char c = 0;
         for (int i = 7; i >= 0; i--) {
             if (bits[*pos] == '1') c = (unsigned char)(c | (1 << i));
             (*pos)++;
         }
         element e;
-        e.caractere  = c;
-        e.poids      = 0;
+        e.caractere   = c;
+        e.poids       = 0;
         e.est_feuille = true;
         return Construire(e, ArbreVide(), ArbreVide());
     }
